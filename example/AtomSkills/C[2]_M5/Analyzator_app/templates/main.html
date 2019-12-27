@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Анализатор ПУЗК </title>
+    <!-- styles -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">Navbar</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+
+        </ul>s
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-5">
+            <h1> Загрузить файл с результатами контроля ПУЗК </h1>
+            <!-- Upload results file to server -->
+            <form action = "/upload" method="post" enctype="multipart/form-data">
+                <div>
+                    <label for="file">Выберите файл с результатами контроля</label>
+                    <input type="file" id="file" name="file" multiple>
+                </div>
+                <div>
+                    <button>Отправить</button>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-7">
+            <h2>Результаты контроля с названием: {{ filename }}</h2>
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">Начало аномалии </th>
+                    <th scope="col">Длинна аномалии </th>
+                    <th scope="col">Тип аномалии </th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for i, value in l_frame.iterrows() %}
+                    <tr>
+                        <td>{{value['start']}}</td>
+                        <td>{{value['length']}}</td>
+                        <td>L</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+
+        </div>
+    </div>
+</div>
+
+
+
+<!-- scripts -->
+<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+datasets/DATA
+.idea
+Jup_model_stands/.ipynb_checkpoints
+__pycache__
+venv
+*.png
+datasets
