@@ -5,32 +5,27 @@ from scipy.signal import savgol_filter
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from sklearn.preprocessing import StandardScaler
 from abc import ABCMeta
-from .signal_manipulation import SmoothLibrary
-from .signal import Signal
+from .signal_manipulation import SmoothLibrary, AnomaliesLibrary, get_random_percent
+from core.signal import Signal
 
 
 class BaseSignalController(metaclass=ABCMeta):
+    """Represents a signal, methods for signal processing, anomaly generation"""
+    smooth_methods = ['savgol', 'moving_average', 'exponential', 'double_exponential', 'lowess']
+
     _normalize = False
     _scale = False
     _smooth = False
 
-    # Base non smoothed values from source
     control_results = None
     scaled_control_results = None
+    smoothed_control_results = None
 
-    # Smoothed values from source using savgol filter method
-    savgol_filter_smoothing = None
-    scaled_savgol_filter_smoothing = None
+    target_variable = None
 
-    # another smoothing values c
-    moving_average_rolling = None
-    exponential_smoothing_results = None
-    double_exponential_smoothing_results = None
-    lowess_smoothing_results = None
-
-    def __init__(self, filepath, encoding, delimiter, corr_threshold=0.9):
-        """
-
+    def __init__(self, filepath, rolling_window_size=500, minimal_anomaly_length=50, sample_rate=40, encoding="cp1251",
+                 delimiter=",", corr_threshold=0.9, smooth_method='savgol', target_variable=None):
+        """ Constructor
         :param filepath:
         :param encoding:
         :param delimiter:
@@ -38,102 +33,165 @@ class BaseSignalController(metaclass=ABCMeta):
         """
         super(BaseSignalController, self).__init__()
         self.filepath = filepath
-        self.read_control_results(encoding, delimiter, corr_threshold)
-        self.smooth_savgol_filter()
-        self.scale_signal()
+        self.rolling_window_size = rolling_window_size
+        self.sample_rate = sample_rate
+        self.minimal_anomaly_length = minimal_anomaly_length
+        # read signal using
+        # TODO different type of files (API) for reading
+        self._read_signals_from_csv(encoding, delimiter)
+        # signal preprocessing after uploading
+        # TODO different pre-preprocessing statements
+        self._preprocess_control_results(corr_threshold)
+        # TODO different variations of signal scaling
+        self._scale_signal()
+        # smooth our signal using one of known methods
+        if smooth_method in self.smooth_methods:
+            if smooth_method == 'savgol':
+                self.smooth_using_savgol_filter()
+            elif smooth_method == 'moving_average':
+                self.smooth_using_moving_average(10)
+            elif smooth_method == 'exponential':
+                self.smooth_using_exponential_method(10)
+            elif smooth_method == 'double_exponential':
+                self.smooth_using_double_exponential_method(10)
+            elif smooth_method == 'lowess':
+                self.smooth_using_lowess()
 
-    def read_control_results(self, encoding, delimiter, corr_threshold):
-        """ Base function for reading control results from pandas, can be overloading in child classes
+    def _read_signals_from_csv(self, encoding, delimiter):
+        """ Upload signal file from csv into memory
         :param encoding: (cp1251, utf-8, etc)
-        :param delimiter: delimeter between columns in dataset
-        :param corr_threshold: minimum threshold of correlation value for removing a feature
+        :param delimiter: delimiter between columns in dataset
         """
-        # Read using pandas library
         self.control_results = pd.read_csv(self.filepath, encoding=encoding, delimiter=delimiter)
         print("Number of columns:", len(self.control_results.columns))
 
-        # drop nan values from dataset
-        self.control_results = self.control_results.dropna(axis='columns')
-        print("Number of columns after clean:", len(self.control_results.columns))
-
-        # correlation check and drop correlated features
+    def _correlation_analysis(self, corr_threshold):
         corr_matrix = self.control_results.corr().abs()
         upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
         to_drop = [column for column in upper.columns if any(upper[column] > corr_threshold)]
         self.control_results = self.control_results.drop(to_drop, axis=1)
         print("Number of columns after corr analysis:", len(self.control_results.columns))
 
-    def smooth_savgol_filter(self):
+    def _preprocess_control_results(self, corr_threshold):
+        """ Base function for reading control results from file,
+        :param corr_threshold: minimum threshold of correlation value for feature removing
+        """
+        self._correlation_analysis(corr_threshold=corr_threshold)
+        self.control_results = self.control_results.dropna(axis='columns')
+        print("Number of columns after clean:", len(self.control_results.columns))
+
+    def _scale_signal(self):
+        """ Standardize features by removing the mean and scaling to unit variance
+        The standard score of a sample x is calculated as:
+        z = (x - u) / s
+        """
+        if self.control_results is not None:
+            self.scaled_control_results = pd.DataFrame(
+                StandardScaler().fit_transform(self.control_results))
+            print('Successfully scaled control_results')
+        else:
+            print('There is no control_results')
+            # TODO raise exception if something go wrong
+
+    def smooth_using_savgol_filter(self):
         """
 
         :return:
         """
-        self.savgol_filter_smoothing = copy.deepcopy(self.control_results)
-        for cont_res in self.control_results:
-            self.savgol_filter_smoothing[cont_res] = savgol_filter(self.control_results[cont_res], 15, 3)
+        self.smoothed_control_results = copy.deepcopy(self.scaled_control_results)
+        for cont_res in self.scaled_control_results:
+            self.smoothed_control_results[cont_res] = savgol_filter(self.scaled_control_results[cont_res], 15, 3)
         print("savgol filter smoothing successful")
 
-    def smooth_moving_average(self, n):
+    def smooth_using_moving_average(self, n):
         """
 
         :param n:
         :return:
         """
-        self.moving_average_rolling = copy.deepcopy(self.control_results)
+        self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
-            self.moving_average_rolling[cont_res] = self.control_results[cont_res].rolling(window=n).mean().fillna(0)
+            self.smoothed_control_results[cont_res] = self.control_results[cont_res].rolling(window=n).mean().fillna(0)
 
-    def smooth_exponential(self, alpha):
+    def smooth_using_exponential_method(self, alpha):
         """
 
         :param alpha:
         :return:
         """
-        self.exponential_smoothing_results = copy.deepcopy(self.control_results)
+        self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
-            self.exponential_smoothing_results[cont_res] = SmoothLibrary.exponential_smoothing(
+            self.smoothed_control_results[cont_res] = SmoothLibrary.exponential_smoothing(
                 self.control_results[cont_res], alpha)
 
-    def smooth_double_exponential(self, alpha, beta):
+    def smooth_using_double_exponential_method(self, alpha, beta):
         """
 
         :param alpha:
         :param beta:
         :return:
         """
-        self.double_exponential_smoothing_results = copy.deepcopy(self.control_results)
+        self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
-            self.double_exponential_smoothing_results[cont_res] = SmoothLibrary.double_exponential_smoothing(
+            self.smoothed_control_results[cont_res] = SmoothLibrary.double_exponential_smoothing(
                 self.control_results[cont_res], alpha, beta)
 
-    def smooth_lowess(self):
+    def smooth_using_lowess(self):
         """
 
         :return:
         """
-        self.lowess_smoothing_results = copy.deepcopy(self.control_results)
+        self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
-            self.lowess_smoothing_results[cont_res] = lowess(self.control_results[cont_res],
+            self.smoothed_control_results[cont_res] = lowess(self.control_results[cont_res],
                                                              range(0, len(self.control_results[cont_res])),
                                                              it=0, frac=0.02, is_sorted=True)
 
-    def scale_signal(self):
-        """
+    @property
+    def get_sliced_signal(self):
+        signal_samples = list()
+        cut = True
+        left_signal_border = 0
+        right_signal_border = self.rolling_window_size
+        while cut:
+            if right_signal_border > len(self.smoothed_control_results.to_numpy()) or \
+                    left_signal_border > len(self.smoothed_control_results.to_numpy()):
+                cut = False
+                continue
+            signal_window = self.smoothed_control_results.to_numpy()[left_signal_border: right_signal_border, :]
+            signal = Signal(signal_window)
+            signal_samples.append(signal)
+            left_signal_border += self.sample_rate
+            right_signal_border += self.sample_rate
+        return signal_samples
 
-        :return:
-        """
-        if self.control_results is not None:
-            self.scaled_control_results = pd.DataFrame(
-                StandardScaler().fit_transform(self.control_results))
-            print('successfully scaled control_results')
-        else:
-            print('There is no control_results')
-        if self.savgol_filter_smoothing is not None:
-            self.scaled_savgol_filter_smoothing = pd.DataFrame(
-                StandardScaler().fit_transform(self.savgol_filter_smoothing))
-            print('successfully scaled savgol filter control results')
-        else:
-            print('There is no scaled_control_results')
+    def generate_anomalies(self, slice_signal):
+        signal_samples = copy.deepcopy(slice_signal)
+        anomaly_signal_samples = list()
+        funcs = [AnomaliesLibrary.change_trend]
+        for signal in signal_samples:
+            begin_index = int(np.random.randint(self.rolling_window_size - 2))
+            end_index = int(np.random.randint(begin_index + 1, self.rolling_window_size))
+            anomaly_length = end_index - begin_index
+
+            while anomaly_length < self.minimal_anomaly_length:
+                begin_index = int(np.random.randint(self.rolling_window_size - 2))
+                end_index = int(np.random.randint(begin_index + 1, self.rolling_window_size))
+                anomaly_length = end_index - begin_index
+
+            anomaly_function = np.random.choice(funcs)
+            percent = get_random_percent(anomaly_function.__name__)
+            abnormal_signal_part = None
+
+            for idx in range(signal.values.shape[1]):
+                initial_signal, abnormal_signal_part = anomaly_function(signal.values[:, idx], begins=[begin_index],
+                                                                        ends=[end_index],
+                                                                        percents=[percent],
+                                                                        source=signal.values[:, idx])
+                signal.values[:, idx] = initial_signal
+            anomaly_signal = Signal(signal.values, abnormal_signal_part, abnormal=True)
+            anomaly_signal_samples.append(anomaly_signal)
+        return anomaly_signal_samples
 
 
 class SignalController(BaseSignalController):
@@ -141,8 +199,8 @@ class SignalController(BaseSignalController):
     def __init__(self, *args, **kwargs):
         super(SignalController, self).__init__(*args, **kwargs)
 
-    def read_control_results(self, *args):
-        super(SignalController, self).read_control_results(*args)
+    def _preprocess_control_results(self, *args):
+        super(SignalController, self)._preprocess_control_results(*args)
         self.control_results['Data'] = pd.to_datetime(self.control_results['Data'])
         self.control_results['Iter_Data'] = self.control_results['Data']
         self.control_results = self.control_results.set_index('Data')
@@ -156,5 +214,6 @@ class GasolineSignalController(BaseSignalController):
         super(GasolineSignalController, self).__init__(*args, **kwargs)
 
     def read_control_results(self, *args):
-        print('Read Gasoline ')
+        print('Read Gasoline')
+        self.control_results = self.control_results.drop(['Time'], axis=1)
         super(GasolineSignalController, self).read_control_results(*args)

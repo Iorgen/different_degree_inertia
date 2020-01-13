@@ -13,6 +13,21 @@ def get_components(x, roll=30):
     return trend, noise
 
 
+def get_random_percent(name):
+    if name == 'change_trend':
+        return np.random.uniform(6, 12)
+    elif name == 'dome':
+        return np.random.uniform(8, 14)
+    elif name == 'increase_dispersion':
+        return np.random.uniform(150, 190)
+    elif name == 'decrease_dispersion':
+        return np.random.uniform(70, 100)
+    elif name == 'shift_trend':
+        return np.random.uniform(10, 18)
+    elif name == 'add_noise':
+        return np.random.uniform(1, 7)
+
+
 class SmoothLibrary:
 
     @staticmethod

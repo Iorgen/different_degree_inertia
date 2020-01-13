@@ -40,7 +40,8 @@ class OneSampleAnomalyGenerator:
             if right_signal_border > len(self.signals) or left_signal_border > len(self.signals):
                 cut = False
                 continue
-            signal_window = self.signals[left_signal_border: right_signal_border]
+            signal_window = self.signals[left_signal_border: right_signal_border, :]
+            print(signal_window.shape)
             signal = Signal(signal_window)
             self.signal_samples.append(signal)
             left_signal_border += self.sample_rate
