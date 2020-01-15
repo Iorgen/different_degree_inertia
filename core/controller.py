@@ -25,26 +25,32 @@ class BaseSignalController(metaclass=ABCMeta):
 
     def __init__(self, filepath, rolling_window_size=500, minimal_anomaly_length=50, sample_rate=40, encoding="cp1251",
                  delimiter=",", corr_threshold=0.9, smooth_method='savgol', target_variable=None):
-        """ Constructor
-        :param filepath:
-        :param encoding:
-        :param delimiter:
-        :param corr_threshold:
+        """ Class for preprocessing file with signal information, anomaly generation, smoothing signal,
+
+
+        :param filepath: file to csv with signals information
+        :param rolling_window_size: window length for signal cropping
+        :param minimal_anomaly_length: minimal length of generated anomaly
+        :param sample_rate: shift anomaly generation
+        :param encoding: file reading encoding
+        :param delimiter: csv file delimiter between columns signal dataset
+        :param corr_threshold: minimum threshold of correlation value for feature removing
+        :param smooth_method: 'savgol', 'moving_average', 'exponential', 'double_exponential', 'lowess'
+        :param target_variable: target variable for usage without anomaly generation
+
         """
         super(BaseSignalController, self).__init__()
         self.filepath = filepath
         self.rolling_window_size = rolling_window_size
         self.sample_rate = sample_rate
         self.minimal_anomaly_length = minimal_anomaly_length
-        # read signal using
         # TODO different type of files (API) for reading
         self._read_signals_from_csv(encoding, delimiter)
-        # signal preprocessing after uploading
         # TODO different pre-preprocessing statements
         self._preprocess_control_results(corr_threshold)
         # TODO different variations of signal scaling
         self._scale_signal()
-        # smooth our signal using one of known methods
+        # TODO API access to signal scaling parameteres
         if smooth_method in self.smooth_methods:
             if smooth_method == 'savgol':
                 self.smooth_using_savgol_filter()
@@ -95,8 +101,6 @@ class BaseSignalController(metaclass=ABCMeta):
 
     def smooth_using_savgol_filter(self):
         """
-
-        :return:
         """
         self.smoothed_control_results = copy.deepcopy(self.scaled_control_results)
         for cont_res in self.scaled_control_results:
@@ -105,9 +109,7 @@ class BaseSignalController(metaclass=ABCMeta):
 
     def smooth_using_moving_average(self, n):
         """
-
         :param n:
-        :return:
         """
         self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
@@ -115,9 +117,7 @@ class BaseSignalController(metaclass=ABCMeta):
 
     def smooth_using_exponential_method(self, alpha):
         """
-
         :param alpha:
-        :return:
         """
         self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
@@ -126,10 +126,8 @@ class BaseSignalController(metaclass=ABCMeta):
 
     def smooth_using_double_exponential_method(self, alpha, beta):
         """
-
         :param alpha:
         :param beta:
-        :return:
         """
         self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
@@ -138,8 +136,6 @@ class BaseSignalController(metaclass=ABCMeta):
 
     def smooth_using_lowess(self):
         """
-
-        :return:
         """
         self.smoothed_control_results = copy.deepcopy(self.control_results)
         for cont_res in self.control_results:
@@ -149,6 +145,9 @@ class BaseSignalController(metaclass=ABCMeta):
 
     @property
     def get_sliced_signal(self):
+        """ Property return sliced signals by params passed in the constructor
+        :return: list Signal()
+        """
         signal_samples = list()
         cut = True
         left_signal_border = 0
@@ -166,6 +165,11 @@ class BaseSignalController(metaclass=ABCMeta):
         return signal_samples
 
     def generate_anomalies(self, slice_signal):
+        """
+
+        :param slice_signal:
+        :return:
+        """
         signal_samples = copy.deepcopy(slice_signal)
         anomaly_signal_samples = list()
         funcs = [AnomaliesLibrary.change_trend]
@@ -200,6 +204,11 @@ class SignalController(BaseSignalController):
         super(SignalController, self).__init__(*args, **kwargs)
 
     def _preprocess_control_results(self, *args):
+        """
+
+        :param args:
+        :return:
+        """
         super(SignalController, self)._preprocess_control_results(*args)
         self.control_results['Data'] = pd.to_datetime(self.control_results['Data'])
         self.control_results['Iter_Data'] = self.control_results['Data']
@@ -213,7 +222,7 @@ class GasolineSignalController(BaseSignalController):
     def __init__(self, *args, **kwargs):
         super(GasolineSignalController, self).__init__(*args, **kwargs)
 
-    def read_control_results(self, *args):
+    def _preprocess_control_results(self, *args):
         print('Read Gasoline')
         self.control_results = self.control_results.drop(['Time'], axis=1)
         super(GasolineSignalController, self).read_control_results(*args)
