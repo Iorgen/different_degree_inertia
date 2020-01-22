@@ -6,7 +6,8 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from sklearn.preprocessing import StandardScaler
 from abc import ABCMeta
 from .signal_manipulation import SmoothLibrary, AnomaliesLibrary, get_random_percent
-from core.signal import Signal
+from .signal import Signal
+from .exceptions.base_exceptions import GeneratorException
 
 
 class BaseSignalController(metaclass=ABCMeta):
@@ -21,12 +22,20 @@ class BaseSignalController(metaclass=ABCMeta):
     scaled_control_results = None
     smoothed_control_results = None
 
-    target_variable = None
+    _target_variable = None
+    _target_values = None
 
-    def __init__(self, filepath, rolling_window_size=500, minimal_anomaly_length=50, sample_rate=40, encoding="cp1251",
-                 delimiter=",", corr_threshold=0.9, smooth_method='savgol', target_variable=None):
-        """ Class for preprocessing file with signal information, anomaly generation, smoothing signal,
-
+    def __init__(self, filepath,
+                 rolling_window_size=500,
+                 minimal_anomaly_length=50,
+                 sample_rate=40,
+                 encoding="cp1251",
+                 delimiter=",",
+                 corr_threshold=0.9,
+                 smooth_method='savgol',
+                 generate_anomaly_mode=True,
+                 target_variable=None):
+        """ Class for preprocess file with signal information, anomaly generation, smoothing signal
 
         :param filepath: file to csv with signals information
         :param rolling_window_size: window length for signal cropping
@@ -40,12 +49,18 @@ class BaseSignalController(metaclass=ABCMeta):
 
         """
         super(BaseSignalController, self).__init__()
+        self._generate_anomaly_mode = generate_anomaly_mode
+        self._target_variable = target_variable
         self.filepath = filepath
         self.rolling_window_size = rolling_window_size
         self.sample_rate = sample_rate
         self.minimal_anomaly_length = minimal_anomaly_length
         # TODO different type of files (API) for reading
         self._read_signals_from_csv(encoding, delimiter)
+        # TODO emission filling
+        # self._emission_filling # if necessary
+        if not self._generate_anomaly_mode and self._target_variable:
+            self._target_values = self.control_results[[self._target_variable]].to_numpy().astype(int)
         # TODO different pre-preprocessing statements
         self._preprocess_control_results(corr_threshold)
         # TODO different variations of signal scaling
@@ -72,6 +87,11 @@ class BaseSignalController(metaclass=ABCMeta):
         print("Number of columns:", len(self.control_results.columns))
 
     def _correlation_analysis(self, corr_threshold):
+        """
+
+        :param corr_threshold:
+        :return:
+        """
         corr_matrix = self.control_results.corr().abs()
         upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
         to_drop = [column for column in upper.columns if any(upper[column] > corr_threshold)]
@@ -158,7 +178,17 @@ class BaseSignalController(metaclass=ABCMeta):
                 cut = False
                 continue
             signal_window = self.smoothed_control_results.to_numpy()[left_signal_border: right_signal_border, :]
-            signal = Signal(signal_window)
+            if not self._generate_anomaly_mode and self._target_variable:
+                condition_window = self._target_values[left_signal_border: right_signal_border]
+                if 1 in condition_window:
+                    abnormal = True
+                else:
+                    abnormal = False
+                signal = Signal(signal_window, condition_window=condition_window, abnormal=abnormal)
+            elif self._generate_anomaly_mode:
+                signal = Signal(signal_window)
+            else:
+                raise Exception
             signal_samples.append(signal)
             left_signal_border += self.sample_rate
             right_signal_border += self.sample_rate
@@ -170,6 +200,8 @@ class BaseSignalController(metaclass=ABCMeta):
         :param slice_signal:
         :return:
         """
+        if not self._generate_anomaly_mode:
+            raise GeneratorException(self._generate_anomaly_mode, 'Wrong generator mode')
         signal_samples = copy.deepcopy(slice_signal)
         anomaly_signal_samples = list()
         funcs = [AnomaliesLibrary.change_trend]
@@ -204,11 +236,6 @@ class SignalController(BaseSignalController):
         super(SignalController, self).__init__(*args, **kwargs)
 
     def _preprocess_control_results(self, *args):
-        """
-
-        :param args:
-        :return:
-        """
         super(SignalController, self)._preprocess_control_results(*args)
         self.control_results['Data'] = pd.to_datetime(self.control_results['Data'])
         self.control_results['Iter_Data'] = self.control_results['Data']
@@ -217,12 +244,19 @@ class SignalController(BaseSignalController):
         self.control_results = self.control_results.drop(['Iter_Data'], axis=1)
 
 
-class GasolineSignalController(BaseSignalController):
+class KasperskySetSignalController(BaseSignalController):
 
     def __init__(self, *args, **kwargs):
-        super(GasolineSignalController, self).__init__(*args, **kwargs)
+        super(KasperskySetSignalController, self).__init__(*args, **kwargs)
+
+    def _read_signals_from_csv(self, encoding, delimiter):
+        self.control_results = pd.read_csv(self.filepath, encoding=encoding, delimiter=delimiter, header=None)
+        print("Number of columns:", len(self.control_results.columns))
+
+    def _correlation_analysis(self, corr_threshold):
+        pass
 
     def _preprocess_control_results(self, *args):
-        print('Read Gasoline')
-        self.control_results = self.control_results.drop(['Time'], axis=1)
-        super(GasolineSignalController, self).read_control_results(*args)
+        self.control_results = self.control_results.drop([0, 54, 55, 56, 57], axis=1)
+        print("NaN Values:", self.control_results.isna().any().any())
+        super(KasperskySetSignalController, self)._preprocess_control_results(*args)
