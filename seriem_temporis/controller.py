@@ -162,7 +162,14 @@ class BaseSignalController(metaclass=ABCMeta):
             self.smoothed_control_results[cont_res] = lowess(self.control_results[cont_res],
                                                              range(0, len(self.control_results[cont_res])),
                                                              it=0, frac=0.02, is_sorted=True)
+    
+    
+    @property
+    def get_class_balance(self):
 
+        return  
+    
+    
     @property
     def get_sliced_signal(self):
         """ Property return sliced signals by params passed in the constructor
@@ -204,7 +211,8 @@ class BaseSignalController(metaclass=ABCMeta):
             raise GeneratorException(self._generate_anomaly_mode, 'Wrong generator mode')
         signal_samples = copy.deepcopy(slice_signal)
         anomaly_signal_samples = list()
-        funcs = [AnomaliesLibrary.change_trend]
+        funcs = [AnomaliesLibrary.add_noise, AnomaliesLibrary.change_trend, AnomaliesLibrary.decrease_dispersion,
+                 AnomaliesLibrary.dome, AnomaliesLibrary.increase_dispersion, AnomaliesLibrary.shift_trend]
         for signal in signal_samples:
             begin_index = int(np.random.randint(self.rolling_window_size - 2))
             end_index = int(np.random.randint(begin_index + 1, self.rolling_window_size))

@@ -36,23 +36,8 @@ from keras.callbacks import ModelCheckpoint
 from scipy import signal
 
 from seriem_temporis.controller import SignalController, KasperskySetSignalController
-
+from neural_models.models import SplitConvolutionalAnomalyDetector
 
 if __name__ =="__main__":
-    signal_samples = list()
-    for filename in os.listdir('/media/jurgen/Новый том/Sygnaldatasets/kaspersky/attacks/')[1:3]:
-        signals = KasperskySetSignalController(
-            filepath='/media/jurgen/Новый том/Sygnaldatasets/kaspersky/attacks/' + filename,
-            rolling_window_size=500,
-            minimal_anomaly_length=50,
-            sample_rate=40,
-            encoding="cp1251",
-            delimiter=",",
-            corr_threshold=0.9,
-            smooth_method='savgol',
-            generate_anomaly_mode=False,
-            target_variable=55)
-
-        signal_samples.extend(signals.get_sliced_signal)
-
-    print(len(signal_samples))
+    neural_model = SplitConvolutionalAnomalyDetector()
+    neural_model.fit_model(verbose=1, epochs_per_step=5, batch_size=128)
