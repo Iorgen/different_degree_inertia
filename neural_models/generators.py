@@ -1,6 +1,6 @@
 import os
 from seriem_temporis.controller import KasperskySetSignalController
-from random import shuffle, randint
+from random import shuffle
 import numpy as np
 from keras.utils import to_categorical
 

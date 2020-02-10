@@ -1,12 +1,11 @@
 import copy
 from keras.models import Model
 from keras.layers import *
-from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
+from keras.callbacks import EarlyStopping
 from .generators import dataset_reader
 
 
 class SplitConvolutionalAnomalyDetector:
-
     # Model training configuration
     EPOCHS = 200
     BATCH_SIZE = 32

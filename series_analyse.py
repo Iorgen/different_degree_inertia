@@ -1,43 +1,39 @@
-import numpy as np
-import pandas as pd
-import copy
-import os
+from seriem_temporis.signal_manipulation import AnomaliesLibrary
 
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-from random import shuffle, randint
+if __name__ == "__main__":
+    anomaly_functions = [AnomaliesLibrary.change_trend,
+                         AnomaliesLibrary.decrease_dispersion,
+                         AnomaliesLibrary.dome,
+                         AnomaliesLibrary.increase_dispersion,
+                         AnomaliesLibrary.shift_trend]
+    handler_conf = {
+        "name": "Testing Model",
 
-from numpy import mean, std, dstack
+        # Anomaly generator configs
+        "generate_anomaly_mode": True,
+        "anomaly_functions": anomaly_functions,
+        "rolling_window_size": 500,
+        "minimal_anomaly_length": 50,
+        "sample_rate": 40,
 
-from pandas import read_csv
+        # reader configs
+        "folder_path": "/media/jurgen/Новый том/Sygnaldatasets/kaspersky/attacks/",
+        "delimiter": ",",
+        "encoding": "cp1251",
 
-from keras import backend as K
-from keras.utils import to_categorical
-from keras.utils.vis_utils import plot_model
-from keras.models import Model, Sequential
-from keras.layers import (Input, Dense, Flatten, Dropout, Conv1D, LSTM, GRU,
-                          TimeDistributed, GlobalAveragePooling1D, MaxPooling1D)
-from keras.layers.convolutional import Conv1D, MaxPooling1D
-from keras.layers.merge import concatenate
+        # Without anomaly generator
+        "target_variable": None,
+        "target_values": None,
 
-from sklearn.metrics import confusion_matrix
-from sklearn.utils.multiclass import unique_labels
-from sklearn.model_selection import train_test_split
-from sklearn.decomposition import PCA
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn.preprocessing import StandardScaler
+        # preprocess configs
+        "smooth_method": "savgol",
+        "normalize": True,
+        "scale": True,
+        "smooth": True,
+    }
 
-from keras.optimizers import Adam, RMSprop,SGD
-from keras.utils import to_categorical
-from keras.models import load_model
-from keras.callbacks import ModelCheckpoint
+    print('start')
 
-from scipy import signal
-
-from seriem_temporis.controller import SignalController, KasperskySetSignalController
-from neural_models.models import SplitConvolutionalAnomalyDetector
-
-if __name__ =="__main__":
-    neural_model = SplitConvolutionalAnomalyDetector()
-    neural_model.fit_model(verbose=1, epochs_per_step=5, batch_size=128)
+    # neural_model = SplitConvolutionalAnomalyDetector()
+    # neural_model.fit_model(verbose=1, epochs_per_step=5, batch_size=128)
