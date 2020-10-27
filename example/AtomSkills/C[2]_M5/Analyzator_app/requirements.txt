@@ -17,7 +17,7 @@ Click==7.0
 cloudpickle==1.2.0
 command-not-found==0.3
 conda==4.3.16
-cryptography==2.7
+cryptography==3.2
 cupshelpers==1.0
 cycler==0.10.0
 dask==1.2.2
