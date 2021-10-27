@@ -20,7 +20,7 @@ conda==4.3.16
 cryptography==2.7
 cupshelpers==1.0
 cycler==0.10.0
-dask==1.2.2
+dask==2021.10.0
 decorator==4.4.0
 defer==1.0.6
 defusedxml==0.6.0
